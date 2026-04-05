@@ -1,0 +1,24 @@
+# .gitignore for repo/
+# Node modules
+frontend/node_modules/
+# Build outputs
+frontend/dist/
+# Logs
+*.log
+# OS files
+.DS_Store
+Thumbs.db
+# Env files
+.env
+.env.*
+# IDE/editor
+.vscode/
+.idea/
+# Test coverage
+coverage/
+# Misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+# Ignore local scripts output
+*.local

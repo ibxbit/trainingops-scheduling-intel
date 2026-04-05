@@ -1,0 +1,128 @@
+.booking-page {
+  padding: 1.25rem;
+  font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+  background: linear-gradient(180deg, #fff7ed 0%, #f8fafc 50%, #eef2ff 100%);
+  min-height: 100%;
+}
+
+.booking-header h1 {
+  margin: 0;
+  font-family: "Bitter", Georgia, serif;
+}
+
+.booking-header p {
+  margin-top: 0.2rem;
+  color: #64748b;
+}
+
+.booking-layout {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 0.8rem;
+}
+
+.booking-card {
+  grid-column: span 4;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.booking-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.booking-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.booking-card input {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.booking-card button {
+  border: 1px solid #0f766e;
+  background: #14b8a6;
+  color: #fff;
+  border-radius: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+}
+
+.booking-card button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actions-row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.policy-panel {
+  margin-top: 0.3rem;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 0.45rem;
+}
+
+.policy-panel p {
+  margin: 0.2rem 0;
+}
+
+.muted {
+  margin: 0;
+  color: #64748b;
+}
+
+.alternatives p {
+  margin: 0 0 0.3rem;
+  font-size: 0.9rem;
+}
+
+.alternatives ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.alternatives li {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.45rem;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.alternatives li button {
+  align-self: flex-start;
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.alternatives li span {
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1100px) {
+  .booking-card {
+    grid-column: span 12;
+  }
+}

@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: trainingops
+      POSTGRES_USER: trainingops
+      POSTGRES_PASSWORD: trainingops
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trainingops -d trainingops"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgres://trainingops:trainingops@db:5432/trainingops?sslmode=disable
+      MIGRATIONS_DIR: /app/migrations
+    command: ["migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgres://trainingops:trainingops@db:5432/trainingops?sslmode=disable
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
+      SESSION_SECURE_COOKIE: "false"
+      HTTP_ADDR: ":8000"
+      STORAGE_ROOT: /var/lib/trainingops/data
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_data:/var/lib/trainingops/data
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3001:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  tester:
+    build:
+      context: ./tester
+    volumes:
+      - ./:/workspace
+    depends_on:
+      api:
+        condition: service_healthy
+
+  unit_runner:
+    image: golang:1.22-alpine
+    working_dir: /app
+    command: ["sleep", "infinity"]
+    volumes:
+      - ./backend:/app
+
+volumes:
+  pgdata:
+  backend_data:
