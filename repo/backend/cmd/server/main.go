@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"trainingops/backend/internal/access"
+	"trainingops/backend/internal/admin"
 	"trainingops/backend/internal/auth"
 	"trainingops/backend/internal/booking"
 	"trainingops/backend/internal/calendar"
@@ -67,6 +68,9 @@ func main() {
 	planningRepo := planning.NewRepository(db)
 	planningSvc := planning.NewService(planningRepo)
 	planningHandler := planning.NewHandler(planningSvc)
+	adminRepo := admin.NewRepository(db)
+	adminSvc := admin.NewService(adminRepo)
+	adminHandler := admin.NewHandler(adminSvc)
 	observabilityRepo := observability.NewRepository(db)
 	observabilitySvc := observability.NewService(observabilityRepo)
 	observabilityHandler := observability.NewHandler(observabilitySvc)
@@ -80,6 +84,7 @@ func main() {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Recover())
+	e.Use(middleware.RequestID())
 	e.Use(security.RequestLogMiddleware(logger))
 	e.Use(middleware.SecureWithConfig(middleware.SecureConfig{
 		XSSProtection:         "1; mode=block",
@@ -371,6 +376,31 @@ func main() {
 	protected.GET("/observability/report-exports", observabilityHandler.ListExports, accessMiddleware.RequireRoles(
 		rbac.RoleAdministrator,
 		rbac.RoleProgramCoordinator,
+	))
+
+	protected.GET("/admin/tenants", adminHandler.ListTenantSettings, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.POST("/admin/tenants", adminHandler.CreateTenantSettings, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.PUT("/admin/tenants/:tenant_id", adminHandler.UpdateTenantSettings, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.GET("/admin/permissions/matrix", adminHandler.RolePermissionMatrix, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.PUT("/admin/permissions/matrix", adminHandler.UpdateRolePermissionMatrix, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.GET("/admin/users/roles", adminHandler.ListUserRoles, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.POST("/admin/users/:user_id/roles", adminHandler.AssignUserRole, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
+	))
+	protected.DELETE("/admin/users/:user_id/roles/:role", adminHandler.RevokeUserRole, accessMiddleware.RequireRoles(
+		rbac.RoleAdministrator,
 	))
 
 	v1.GET("/content/share/:token/download", contentHandler.ShareDownload)

@@ -1,9 +1,11 @@
 package security
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"io"
-	"net/http"
+	"net"
 	"strings"
 	"time"
 
@@ -26,14 +28,25 @@ func RequestLogMiddleware(logger *SecureLogger) echo.MiddlewareFunc {
 
 			req := c.Request()
 			res := c.Response()
+			route := c.Path()
+			if route == "" {
+				route = sanitizePath(req.URL.Path)
+			}
 			entry := map[string]any{
 				"ts":         time.Now().UTC().Format(time.RFC3339),
 				"method":     req.Method,
-				"path":       req.URL.Path,
+				"path":       sanitizePath(req.URL.Path),
+				"route":      sanitizePath(route),
 				"status":     res.Status,
 				"latency_ms": time.Since(start).Milliseconds(),
-				"remote_ip":  c.RealIP(),
-				"headers":    maskHeaders(req.Header),
+				"request_id": res.Header().Get(echo.HeaderXRequestID),
+				"client_ip":  anonymizeIP(c.RealIP()),
+			}
+			if tenantID, ok := c.Get("tenant_id").(string); ok && tenantID != "" {
+				entry["tenant_id"] = tenantID
+			}
+			if userID, ok := c.Get("user_id").(string); ok && userID != "" {
+				entry["user_id"] = userID
 			}
 			if err != nil {
 				entry["error"] = maskSensitive(err.Error())
@@ -49,27 +62,50 @@ func (l *SecureLogger) log(entry map[string]any) {
 	_, _ = l.out.Write(append(b, '\n'))
 }
 
-func maskHeaders(h http.Header) map[string]string {
-	out := make(map[string]string, len(h))
-	for k, v := range h {
-		if len(v) == 0 {
-			continue
-		}
-		lk := strings.ToLower(k)
-		switch lk {
-		case "authorization", "cookie", "set-cookie", "x-api-key":
-			out[k] = "[REDACTED]"
-		default:
-			out[k] = maskSensitive(v[0])
-		}
-	}
-	return out
-}
-
 func maskSensitive(input string) string {
 	s := strings.ToLower(input)
 	if strings.Contains(s, "password") || strings.Contains(s, "token") || strings.Contains(s, "secret") {
 		return "[REDACTED]"
 	}
 	return input
+}
+
+func sanitizePath(path string) string {
+	if path == "" {
+		return path
+	}
+	parts := strings.Split(path, "/")
+	for i := range parts {
+		segment := parts[i]
+		if segment == "" {
+			continue
+		}
+		if i > 0 && parts[i-1] == "share" && !strings.HasPrefix(segment, ":") {
+			parts[i] = "[REDACTED]"
+			continue
+		}
+		if strings.HasPrefix(segment, ":") {
+			continue
+		}
+		if strings.Contains(strings.ToLower(segment), "token") {
+			parts[i] = "[REDACTED]"
+		}
+	}
+	return strings.Join(parts, "/")
+}
+
+func anonymizeIP(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	host := raw
+	if strings.HasPrefix(host, "[") && strings.Contains(host, "]") {
+		host = strings.TrimPrefix(strings.Split(host, "]")[0], "[")
+	}
+	if h, _, err := net.SplitHostPort(raw); err == nil {
+		host = h
+	}
+	sum := sha256.Sum256([]byte(host))
+	return "iphash:" + hex.EncodeToString(sum[:])[:12]
 }

@@ -160,6 +160,27 @@ export type UploadSession = {
   completed_at?: string | null;
 };
 
+export type TenantSettings = {
+  tenant_id: string;
+  tenant_slug: string;
+  tenant_name: string;
+  allow_self_registration: boolean;
+  require_mfa: boolean;
+  max_active_bookings_per_learner: number;
+};
+
+export type RolePermissionAssignment = {
+  role: "administrator" | "program_coordinator" | "instructor" | "learner";
+  permission: string;
+  allowed: boolean;
+};
+
+export type UserRoleAssignment = {
+  user_id: string;
+  username: string;
+  roles: Array<"administrator" | "program_coordinator" | "instructor" | "learner">;
+};
+
 export type DocumentVersion = {
   document_version_id: string;
   document_id: string;
@@ -508,6 +529,66 @@ export function bulkUpdateTasks(payload: {
     method: "PATCH",
     body: payload,
   });
+}
+
+export function listTenantSettings() {
+  return apiRequest<TenantSettings[]>(`/admin/tenants`);
+}
+
+export function saveTenantSettings(payload: TenantSettings) {
+  return apiRequest<TenantSettings>(
+    `/admin/tenants/${encodeURIComponent(payload.tenant_id)}`,
+    {
+      method: "PUT",
+      body: {
+        tenant_slug: payload.tenant_slug,
+        tenant_name: payload.tenant_name,
+        allow_self_registration: payload.allow_self_registration,
+        require_mfa: payload.require_mfa,
+        max_active_bookings_per_learner: payload.max_active_bookings_per_learner,
+      },
+    },
+  );
+}
+
+export function getRolePermissionMatrix() {
+  return apiRequest<RolePermissionAssignment[]>(`/admin/permissions/matrix`);
+}
+
+export function saveRolePermissionMatrix(assignments: RolePermissionAssignment[]) {
+  return apiRequest<{ status: string }>(`/admin/permissions/matrix`, {
+    method: "PUT",
+    body: { assignments },
+  });
+}
+
+export function listUserRoleAssignments() {
+  return apiRequest<UserRoleAssignment[]>(`/admin/users/roles`);
+}
+
+export function assignUserRole(
+  userID: string,
+  role: "administrator" | "program_coordinator" | "instructor" | "learner",
+) {
+  return apiRequest<{ status: string }>(
+    `/admin/users/${encodeURIComponent(userID)}/roles`,
+    {
+      method: "POST",
+      body: { role },
+    },
+  );
+}
+
+export function revokeUserRole(
+  userID: string,
+  role: "administrator" | "program_coordinator" | "instructor" | "learner",
+) {
+  return apiRequest<{ status: string }>(
+    `/admin/users/${encodeURIComponent(userID)}/roles/${encodeURIComponent(role)}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export function login(payload: {

@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import type { Permission } from "../auth/policy";
+import { AdminPage } from "../features/admin/AdminPage";
 import { BookingFlowPage } from "../features/booking/BookingFlowPage";
 import { CalendarPage } from "../features/calendar/CalendarPage";
 import { ContentLibraryPage } from "../features/content/ContentLibraryPage";
@@ -16,6 +17,13 @@ export type AppRoute = {
 };
 
 export const appRoutes: AppRoute[] = [
+  {
+    key: "admin",
+    title: "Administrator",
+    path: "/admin",
+    component: AdminPage,
+    permission: "admin.view",
+  },
   {
     key: "dashboard",
     title: "Dashboard",

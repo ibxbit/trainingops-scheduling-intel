@@ -53,12 +53,30 @@ func Load() (*Config, error) {
 		"docx": {},
 	}
 
+	sessionTTL := 24 * time.Hour
+	if raw := os.Getenv("SESSION_TTL"); raw != "" {
+		v, err := time.ParseDuration(raw)
+		if err != nil || v <= 0 {
+			return nil, errors.New("SESSION_TTL must be a positive duration, eg 24h")
+		}
+		sessionTTL = v
+	}
+
+	rotateEvery := 5 * time.Minute
+	if raw := os.Getenv("SESSION_ROTATE_EVERY"); raw != "" {
+		v, err := time.ParseDuration(raw)
+		if err != nil || v <= 0 {
+			return nil, errors.New("SESSION_ROTATE_EVERY must be a positive duration, eg 5m")
+		}
+		rotateEvery = v
+	}
+
 	return &Config{
-		HTTPAddr:             envOr("HTTP_ADDR", ":8080"),
+		HTTPAddr:             envOr("HTTP_ADDR", ":8000"),
 		StorageRoot:          envOr("STORAGE_ROOT", "data"),
 		SessionCookieName:    envOr("SESSION_COOKIE_NAME", "trainingops_session"),
-		SessionTTL:           24 * time.Hour,
-		SessionRotateEvery:   5 * time.Minute,
+		SessionTTL:           sessionTTL,
+		SessionRotateEvery:   rotateEvery,
 		SessionSecureCookie:  secureCookie,
 		EncryptionKey:        encKey,
 		AllowedUploadFormats: allowed,

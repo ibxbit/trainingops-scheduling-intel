@@ -15,8 +15,10 @@ import {
 } from "../../api/endpoints";
 import { AccessGate } from "../../auth/access-control";
 import { useSessionStore } from "../../state/session-store";
+import { buildUploadResumeKey } from "../../state/upload-resume-cache";
 
 export function ContentLibraryPage() {
+  const sessionUser = useSessionStore((s) => s.user);
   const role = useSessionStore((s) => s.user?.primaryRole ?? null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,10 +41,16 @@ export function ContentLibraryPage() {
 
   const resumeKey = useMemo(
     () =>
-      file
-        ? `content-upload:${file.name}:${file.size}:${documentIDForVersion || "new"}`
+      file && sessionUser
+        ? buildUploadResumeKey(
+            sessionUser.tenantId,
+            sessionUser.userId,
+            file.name,
+            file.size,
+            documentIDForVersion || "new",
+          )
         : "",
-    [file, documentIDForVersion],
+    [documentIDForVersion, file, sessionUser],
   );
 
   const runSearch = async () => {

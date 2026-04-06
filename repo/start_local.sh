@@ -4,6 +4,8 @@ set -euo pipefail
 MODE="${1:-all}"
 ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$ROOT_DIR/.logs"
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+FRONTEND_PORT="${FRONTEND_PORT:-3000}"
 mkdir -p "$LOG_DIR"
 
 if [ -z "${DATABASE_URL:-}" ]; then
@@ -23,7 +25,7 @@ start_api() {
   echo "[local] starting backend api"
   (
     cd "$ROOT_DIR/backend"
-    nohup go run ./cmd/server >"$LOG_DIR/backend.log" 2>&1 &
+    HTTP_ADDR=":${BACKEND_PORT}" nohup go run ./cmd/server >"$LOG_DIR/backend.log" 2>&1 &
     echo $! >"$LOG_DIR/backend.pid"
   )
   echo "[local] backend started (pid $(cat "$LOG_DIR/backend.pid"))"
@@ -36,7 +38,8 @@ start_frontend() {
   echo "[local] starting frontend dev server"
   (
     cd "$ROOT_DIR/frontend"
-    nohup npm run dev -- --host 0.0.0.0 --port 3000 >"$LOG_DIR/frontend.log" 2>&1 &
+    VITE_API_PROXY_TARGET="${VITE_API_PROXY_TARGET:-http://localhost:${BACKEND_PORT}}" \
+      nohup npm run dev -- --host 0.0.0.0 --port "$FRONTEND_PORT" >"$LOG_DIR/frontend.log" 2>&1 &
     echo $! >"$LOG_DIR/frontend.pid"
   )
   echo "[local] frontend started (pid $(cat "$LOG_DIR/frontend.pid"))"
@@ -59,4 +62,6 @@ case "$MODE" in
     ;;
 esac
 
+echo "[local] backend: http://localhost:${BACKEND_PORT}"
+echo "[local] frontend: http://localhost:${FRONTEND_PORT}"
 echo "[local] logs: $LOG_DIR/backend.log, $LOG_DIR/frontend.log"

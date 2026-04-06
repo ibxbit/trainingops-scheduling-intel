@@ -17,3 +17,12 @@ func AllRoles() []Role {
 		RoleLearner,
 	}
 }
+
+func IsKnownRole(role Role) bool {
+	for _, candidate := range AllRoles() {
+		if candidate == role {
+			return true
+		}
+	}
+	return false
+}

@@ -24,6 +24,7 @@ import {
   type Role,
 } from "./auth/roles";
 import { useSessionStore } from "./state/session-store";
+import { clearUploadResumeCache } from "./state/upload-resume-cache";
 
 function Forbidden() {
   return <div className="error">You do not have access to this page.</div>;
@@ -77,6 +78,7 @@ export function App() {
         if (!active) {
           return;
         }
+        clearUploadResumeCache();
         clearSession();
       } finally {
         if (active) {
@@ -118,6 +120,7 @@ export function App() {
           ? String((e as { message: string }).message)
           : "Login failed",
       );
+      clearUploadResumeCache();
       clearSession();
       setReady(true);
     } finally {
@@ -136,6 +139,7 @@ export function App() {
     } catch {
       // do nothing; local reset still required
     } finally {
+      clearUploadResumeCache(user?.tenantId, user?.userId);
       clearSession();
       setReady(true);
       setLoading(false);

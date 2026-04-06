@@ -1,6 +1,8 @@
 import type { Role } from "./roles";
 
 export type Permission =
+  | "admin.view"
+  | "admin.manage"
   | "calendar.view"
   | "calendar.manage"
   | "booking.view"
@@ -13,6 +15,7 @@ export type Permission =
   | "dashboard.manage";
 
 export const routePolicies: Record<string, Permission> = {
+  "/admin": "admin.view",
   "/dashboard": "dashboard.view",
   "/calendar": "calendar.view",
   "/booking": "booking.view",
@@ -21,6 +24,8 @@ export const routePolicies: Record<string, Permission> = {
 };
 
 const policyMatrix: Record<Permission, Role[]> = {
+  "admin.view": ["administrator"],
+  "admin.manage": ["administrator"],
   "dashboard.view": [
     "administrator",
     "program_coordinator",
