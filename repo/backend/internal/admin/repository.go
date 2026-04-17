@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 
 	"trainingops/backend/internal/dbctx"
 	"trainingops/backend/internal/rbac"
@@ -179,7 +180,7 @@ func (r *Repository) ListUserRoleAssignments(ctx context.Context, tenantID strin
 SELECT
   u.user_id::text,
   u.username,
-  COALESCE(array_remove(array_agg(ur.role ORDER BY ur.role), NULL), ARRAY[]::app_role[])
+  COALESCE(string_agg(ur.role::text, ',' ORDER BY ur.role), '')
 FROM users u
 LEFT JOIN user_roles ur ON ur.tenant_id = u.tenant_id AND ur.user_id = u.user_id
 WHERE u.tenant_id::text = $1
@@ -194,13 +195,17 @@ ORDER BY u.username ASC
 	out := make([]UserRoleAssignment, 0, 8)
 	for rows.Next() {
 		var item UserRoleAssignment
-		var roles []string
-		if err := rows.Scan(&item.UserID, &item.Username, &roles); err != nil {
+		var rolesCSV string
+		if err := rows.Scan(&item.UserID, &item.Username, &rolesCSV); err != nil {
 			return nil, err
 		}
-		item.Roles = make([]rbac.Role, 0, len(roles))
-		for _, role := range roles {
-			item.Roles = append(item.Roles, rbac.Role(role))
+		item.Roles = make([]rbac.Role, 0)
+		if rolesCSV != "" {
+			for _, role := range strings.Split(rolesCSV, ",") {
+				if role != "" {
+					item.Roles = append(item.Roles, rbac.Role(role))
+				}
+			}
 		}
 		out = append(out, item)
 	}

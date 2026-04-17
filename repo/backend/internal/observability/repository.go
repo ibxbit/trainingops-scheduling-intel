@@ -25,13 +25,18 @@ func (r *Repository) ApplyRetention(ctx context.Context, days int) error {
 	if days <= 0 {
 		days = 90
 	}
-	_, err := dbctx.ExecContext(ctx, r.db, `
-DELETE FROM workflow_logs WHERE occurred_at < NOW() - ($1::text || ' days')::interval;
-DELETE FROM scraping_errors WHERE occurred_at < NOW() - ($1::text || ' days')::interval;
-DELETE FROM anomaly_events WHERE created_at < NOW() - ($1::text || ' days')::interval;
-DELETE FROM report_exports WHERE generated_at < NOW() - ($1::text || ' days')::interval;
-`, days)
-	return err
+	sweeps := []string{
+		`DELETE FROM workflow_logs    WHERE occurred_at  < NOW() - make_interval(days => $1)`,
+		`DELETE FROM scraping_errors  WHERE occurred_at  < NOW() - make_interval(days => $1)`,
+		`DELETE FROM anomaly_events   WHERE created_at   < NOW() - make_interval(days => $1)`,
+		`DELETE FROM report_exports   WHERE created_at   < NOW() - make_interval(days => $1)`,
+	}
+	for _, q := range sweeps {
+		if _, err := dbctx.ExecContext(ctx, r.db, q, days); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Repository) InsertWorkflowLog(ctx context.Context, tenantID string, userID *string, workflowName, resourceID, outcome string, statusCode, latencyMS int, details map[string]any) error {

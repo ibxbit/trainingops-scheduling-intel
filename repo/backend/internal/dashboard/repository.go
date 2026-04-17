@@ -55,8 +55,8 @@ INSERT INTO analytics_dashboard_daily_summary (tenant_id, metric_date, todays_se
 VALUES (
   $1::uuid,
   $2::date,
-  (SELECT COUNT(*) FROM sessions s WHERE s.tenant_id::text = $1 AND s.starts_at::date = $2::date),
-  (SELECT COUNT(*) FROM approval_requests a WHERE a.tenant_id::text = $1 AND a.status = 'pending'),
+  (SELECT COUNT(*) FROM sessions s WHERE s.tenant_id = $1::uuid AND s.starts_at::date = $2::date),
+  (SELECT COUNT(*) FROM approval_requests a WHERE a.tenant_id = $1::uuid AND a.status = 'pending'),
   NOW()
 )
 ON CONFLICT (tenant_id, metric_date) DO UPDATE SET
@@ -160,13 +160,13 @@ community AS (
     AND occurred_at::date BETWEEN ($2::date - INTERVAL '6 days')::date AND $2::date
 )
 INSERT INTO analytics_dashboard_kpi_daily (tenant_id, metric_date, metric_key, metric_value, numerator, denominator, computed_at)
-SELECT $1::uuid, $2::date, metric_key, metric_value, numerator, denominator, NOW()
+SELECT $1::uuid, $2::date, metric_key, COALESCE(metric_value, 0), COALESCE(numerator, 0), COALESCE(denominator, 0), NOW()
 FROM (
   SELECT
     'enrollment_growth'::text AS metric_key,
     CASE WHEN pe.n = 0 THEN 0 ELSE ((ce.n - pe.n)::double precision / pe.n::double precision) END AS metric_value,
     ce.n::double precision AS numerator,
-    NULLIF(pe.n, 0)::double precision AS denominator
+    pe.n::double precision AS denominator
   FROM current_enrollment ce, previous_enrollment pe
 
   UNION ALL

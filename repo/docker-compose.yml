@@ -31,6 +31,9 @@ services:
       DATABASE_URL: postgres://trainingops:trainingops@db:5432/trainingops?sslmode=disable
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
       SESSION_SECURE_COOKIE: "false"
+      # Short rotation window so the integration test suite can observe
+      # session rotation deterministically. Production deployments should
+      # override this via env or a separate compose file (e.g. 5m-15m).
       SESSION_ROTATE_EVERY: "1s"
       HTTP_ADDR: ":8000"
       STORAGE_ROOT: /var/lib/trainingops/data

@@ -311,3 +311,38 @@ Gate evidence:
 ## Final Verdicts
 - Test Coverage Audit: **PASS**
 - README Audit: **PASS**
+
+---
+
+## Runtime Validation (executed)
+
+- Host: Docker Engine 29.3.1, Docker Compose v5.1.1.
+- Commands executed end-to-end:
+  - `docker-compose down -v --remove-orphans`
+  - `docker-compose up -d --build`
+  - `bash ./run_tests.sh`
+- Outcome: **`[tests] all tests passed`** (bash exit code 0).
+  - Backend Go unit tests: all packages OK.
+  - Frontend Vitest suite: 9 files / 12 tests passed.
+  - API integration tests (real HTTP via `API_tests/run_api_tests.sh`): all 84 `[api]` steps passed across all 69 endpoints plus auth/concurrency scenarios.
+
+## Runtime Fixes Applied While Validating
+
+1. `repo/API_tests/run_api_tests.sh` — matrix body assertion aligned with actual response schema (`"permission"` + `"allowed"` + `"role"` instead of the non-existent `"permission_key"`). Evidence: previous failure log `repo/build-execution (18).log:832`.
+2. `repo/API_tests/run_api_tests.sh` — `current_session_cookie` awk filter fixed: cookie-jar lines begin with `#HttpOnly_` prefix (netscape format), which was being discarded by the `^#` exclusion, causing session-rotation assertion to read empty values and falsely pass/fail. The filter now matches on cookie name column only.
+3. `repo/API_tests/run_api_tests.sh` — merge-flag 404 assertion pattern loosened from `'"not found"'` to `'not found'` to match the actual error message `{"error":"duplicate flag not found"}`.
+4. `repo/backend/internal/admin/repository.go` — `ListUserRoleAssignments` rewritten to use `string_agg(ur.role::text, ',')` + Go-side split, because `pgx` stdlib could not scan `app_role[]` into `[]string`, producing 500 on `GET /admin/users/roles`.
+5. `repo/backend/internal/dashboard/repository.go` — `Precompute` daily-summary INSERT changed from `s.tenant_id::text = $1` to `s.tenant_id = $1::uuid` (and same for `approval_requests`) to avoid `operator does not exist: text = uuid` crash; KPI INSERT wrapped `metric_value` / `numerator` / `denominator` in outer `COALESCE(..., 0)` to satisfy NOT NULL constraints when previous-enrollment / previews counts are zero (first-refresh case). Fixes `POST /dashboard/refresh` 500.
+6. `repo/backend/internal/content/models.go` — added `json:"..."` tags to `Document`, `DocumentVersion`, `UploadSession` so content endpoints return snake_case fields (`upload_id`, `document_id`, `version_no`, etc.) matching the frontend's `UploadSession` type at `repo/frontend/src/api/endpoints.ts:152-163`. Fixes upload workflow JSON contract mismatch.
+
+None of these changes weakened any test — they corrected mismatches between what the API actually returns and what the tests asserted, or fixed production queries that were latent-broken because the original suite never exercised them.
+
+## Follow-up Hardening (post-green fixes)
+
+After the main suite went green, three remaining risks were resolved:
+
+7. `repo/backend/internal/observability/repository.go` — `ApplyRetention` rewritten to execute **four separate** `Exec` calls instead of one multi-statement SQL (pgx's prepared-statement path rejects `;`-separated statements). The interval expression was also switched from `($1::text || ' days')::interval` to `make_interval(days => $1)` so pgx can encode the integer parameter cleanly, and `report_exports.generated_at` was corrected to `created_at` (the actual column in `repo/backend/migrations/008_observability.sql`). The `retention sweep warning` is gone from `api` logs on startup.
+8. `repo/API_tests/run_api_tests.sh` — `POST /content/ingestion/sources/:source_id/run` reordered to execute **before** proxies/user-agents are registered, and its assertion tightened from `200 or 400` to exactly `200` plus `"status"` + `"started_at"` body fields. Previously, the test accepted 400 because a registered loopback proxy would break the outbound fetch; now the run targets the in-network `/health` directly and the expected contract is exact.
+9. `repo/docker-compose.yml` — added a comment above `SESSION_ROTATE_EVERY: "1s"` clarifying it is a test-suite-only value and that production should override to a longer window (e.g. `5m`-`15m`).
+
+Final confirmation: `bash ./run_tests.sh` → exit code 0, 84 `[api]` steps, 12/12 frontend tests, all Go packages OK, `[tests] all tests passed`, and `docker-compose logs api | grep retention` returns nothing.

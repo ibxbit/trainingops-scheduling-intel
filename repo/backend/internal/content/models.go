@@ -3,37 +3,37 @@ package content
 import "time"
 
 type Document struct {
-	DocumentID       string
-	TenantID         string
-	Title            string
-	Summary          string
-	Difficulty       int
-	DurationMinutes  int
-	CurrentVersionNo int
-	IsArchived       bool
+	DocumentID       string `json:"document_id"`
+	TenantID         string `json:"tenant_id"`
+	Title            string `json:"title"`
+	Summary          string `json:"summary"`
+	Difficulty       int    `json:"difficulty"`
+	DurationMinutes  int    `json:"duration_minutes"`
+	CurrentVersionNo int    `json:"current_version_no"`
+	IsArchived       bool   `json:"is_archived"`
 }
 
 type DocumentVersion struct {
-	DocumentVersionID string
-	DocumentID        string
-	VersionNo         int
-	FileName          string
-	StoragePath       string
-	MimeType          string
-	FileSizeBytes     int64
-	SHA256Checksum    string
-	CreatedAt         time.Time
+	DocumentVersionID string    `json:"document_version_id"`
+	DocumentID        string    `json:"document_id"`
+	VersionNo         int       `json:"version_no"`
+	FileName          string    `json:"file_name"`
+	StoragePath       string    `json:"storage_path"`
+	MimeType          string    `json:"mime_type"`
+	FileSizeBytes     int64     `json:"file_size_bytes"`
+	SHA256Checksum    string    `json:"sha256_checksum"`
+	CreatedAt         time.Time `json:"created_at"`
 }
 
 type UploadSession struct {
-	UploadID       string
-	DocumentID     *string
-	FileName       string
-	MimeType       string
-	TotalChunks    int
-	ChunkSizeBytes int
-	ExpiresAt      time.Time
-	CompletedAt    *time.Time
+	UploadID       string     `json:"upload_id"`
+	DocumentID     *string    `json:"document_id"`
+	FileName       string     `json:"file_name"`
+	MimeType       string     `json:"mime_type"`
+	TotalChunks    int        `json:"total_chunks"`
+	ChunkSizeBytes int        `json:"chunk_size_bytes"`
+	ExpiresAt      time.Time  `json:"expires_at"`
+	CompletedAt    *time.Time `json:"completed_at"`
 }
 
 type AlternativeDoc struct {

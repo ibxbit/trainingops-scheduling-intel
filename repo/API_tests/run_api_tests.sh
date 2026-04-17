@@ -78,7 +78,7 @@ extract_booking_id() {
 
 current_session_cookie() {
   local file="$1"
-  awk '($0 !~ /^#/ && $6 == "trainingops_session") {print $7}' "$file"
+  awk '$6 == "trainingops_session" {print $7}' "$file"
 }
 
 LEARNER_COOKIE="$TMP_DIR/learner.cookie"
@@ -163,7 +163,9 @@ assert_code "$code" "403" "cross-tenant admin update denied"
 echo "[api] role-permission matrix view and update"
 code=$(request "GET" "$BASE/admin/permissions/matrix" "" "$ADMIN_COOKIE")
 assert_code "$code" "200" "GET /admin/permissions/matrix"
-assert_body_contains "$TMP_DIR/body.json" '"permission_key"' "matrix body permission_key"
+assert_body_contains "$TMP_DIR/body.json" '"permission"' "matrix body permission field"
+assert_body_contains "$TMP_DIR/body.json" '"allowed"' "matrix body allowed field"
+assert_body_contains "$TMP_DIR/body.json" '"role"' "matrix body role field"
 
 code=$(request "PUT" "$BASE/admin/permissions/matrix" '{"assignments":[{"role":"program_coordinator","permission":"rbac.matrix.view","allowed":true}]}' "$ADMIN_COOKIE")
 assert_code "$code" "200" "PUT /admin/permissions/matrix"
@@ -495,7 +497,7 @@ assert_body_contains "$TMP_DIR/body.json" '"flagged"' "duplicates body flagged"
 echo "[api] PATCH /content/documents/duplicates/:duplicate_id/merge-flag (expect 404 for unknown id)"
 code=$(request "PATCH" "$BASE/content/documents/duplicates/00000000-0000-0000-0000-000000000000/merge-flag" '{"merge_candidate":true}' "$COORD_COOKIE")
 assert_code "$code" "404" "PATCH merge-flag unknown duplicate"
-assert_body_contains "$TMP_DIR/body.json" '"not found"' "merge-flag 404 body"
+assert_body_contains "$TMP_DIR/body.json" 'not found' "merge-flag 404 body"
 
 ##############################################################################
 # SECTION 10: content ingestion endpoints
@@ -512,6 +514,13 @@ code=$(request "GET" "$BASE/content/ingestion/sources" "" "$COORD_COOKIE")
 assert_code "$code" "200" "GET /content/ingestion/sources"
 assert_body_contains "$TMP_DIR/body.json" '"Local Health Feed"' "ingestion sources list"
 
+echo "[api] POST /content/ingestion/sources/:source_id/run (synchronous fetch against in-network /health)"
+# NOTE: run before registering proxies/user-agents so the client does a direct in-network fetch.
+code=$(request "POST" "$BASE/content/ingestion/sources/$SOURCE_ID/run" '{}' "$COORD_COOKIE")
+assert_code "$code" "200" "POST /content/ingestion/sources/:source_id/run"
+assert_body_contains "$TMP_DIR/body.json" '"status"' "ingestion run body has status"
+assert_body_contains "$TMP_DIR/body.json" '"started_at"' "ingestion run body has started_at"
+
 echo "[api] POST /content/ingestion/proxies"
 code=$(request "POST" "$BASE/content/ingestion/proxies" '{"proxy_url":"http://localhost:3128"}' "$COORD_COOKIE")
 assert_code "$code" "201" "POST /content/ingestion/proxies"
@@ -522,12 +531,10 @@ code=$(request "POST" "$BASE/content/ingestion/user-agents" '{"user_agent":"Test
 assert_code "$code" "201" "POST /content/ingestion/user-agents"
 assert_body_contains "$TMP_DIR/body.json" '"user_agent_added"' "user-agent add body"
 
-echo "[api] POST /content/ingestion/sources/:source_id/run (synchronous fetch)"
-code=$(request "POST" "$BASE/content/ingestion/sources/$SOURCE_ID/run" '{}' "$COORD_COOKIE")
-assert_code_in "$code" "POST /content/ingestion/sources/:source_id/run" "200" "400"
-assert_body_contains "$TMP_DIR/body.json" '"' "ingestion run body non-empty"
-
 echo "[api] POST /content/ingestion/run-due"
+# After this point a proxy is registered that may make outbound calls fail; run-due
+# still returns 200 with an empty/failed runs list. We assert the endpoint contract,
+# not the outbound outcome.
 code=$(request "POST" "$BASE/content/ingestion/run-due?max_sources=1" '{}' "$COORD_COOKIE")
 assert_code "$code" "200" "POST /content/ingestion/run-due"
 assert_body_contains "$TMP_DIR/body.json" '"data"' "run-due body"
