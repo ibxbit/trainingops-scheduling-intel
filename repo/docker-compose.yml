@@ -31,6 +31,7 @@ services:
       DATABASE_URL: postgres://trainingops:trainingops@db:5432/trainingops?sslmode=disable
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef
       SESSION_SECURE_COOKIE: "false"
+      SESSION_ROTATE_EVERY: "1s"
       HTTP_ADDR: ":8000"
       STORAGE_ROOT: /var/lib/trainingops/data
     ports:

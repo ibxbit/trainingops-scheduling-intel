@@ -1,156 +1,121 @@
-# TrainingOps (Offline-First)
+# TrainingOps
 
-This repository supports both Docker and Docker-free local execution.
+Project Type: fullstack
 
-- Local mode is first-class and uses host PostgreSQL + Go + Vite.
-- Docker mode remains available for containerized parity.
+TrainingOps is a multi-tenant training operations platform. The backend is a Go/Echo HTTP API backed by PostgreSQL. The frontend is a React + Vite single-page app. Everything runs in Docker and is orchestrated by `docker-compose`.
 
-## Prerequisites
+## Quick Start (Docker)
 
-- Go 1.22+
-- Node 20+
-- PostgreSQL 16+
-- Bash shell
-
-## Environment Variables
-
-Required:
-
-- `DATABASE_URL` (example: `postgres://trainingops:trainingops@localhost:5432/trainingops?sslmode=disable`)
-- `ENCRYPTION_KEY` (exactly 32 bytes)
-
-Recommended for local HTTP:
-
-- `SESSION_SECURE_COOKIE=false`
-
-Optional:
-
-- `BACKEND_PORT` (default: `8000`)
-- `FRONTEND_PORT` (default: `3000`)
-- `VITE_API_PROXY_TARGET` (default local mode: `http://localhost:8000`; docker mode: `http://api:8000`)
-- `SESSION_ROTATE_EVERY` (default: `5m`, useful for short-interval test verification)
-- `SESSION_TTL` (default: `24h`)
-
-## Local Start (Docker-Free)
-
-1) Export required environment:
+Prerequisite: Docker Desktop (or any Docker Engine + Compose v2).
 
 ```bash
-export DATABASE_URL='postgres://trainingops:trainingops@localhost:5432/trainingops?sslmode=disable'
-export ENCRYPTION_KEY='0123456789abcdef0123456789abcdef'
-export SESSION_SECURE_COOKIE=false
+docker-compose up
 ```
 
-2) Start backend + frontend:
+That single command:
 
-```bash
-bash ./start_local.sh
-```
+1. Starts PostgreSQL 16 with the `trainingops` database.
+2. Runs all SQL migrations (including seed data for demo accounts and sessions).
+3. Builds and starts the Go backend API on port `8000`.
+4. Builds and serves the React frontend on port `3001`.
 
-Local URLs:
+No host-side Go, Node, or PostgreSQL install is required. Source code is mounted at build time; the stack is self-contained.
 
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:8000`
-- Health: `http://localhost:8000/health`
+## Access
 
-Logs:
-
-- `.logs/backend.log`
-- `.logs/frontend.log`
-
-## Local Stop
-
-```bash
-bash ./stop_local.sh
-```
-
-## Local Tests (Docker-Free)
-
-```bash
-export DATABASE_URL='postgres://trainingops:trainingops@localhost:5432/trainingops?sslmode=disable'
-export ENCRYPTION_KEY='0123456789abcdef0123456789abcdef'
-export SESSION_SECURE_COOKIE=false
-bash ./run_tests_local.sh
-```
-
-What it runs:
-
-- Backend tests: `go test ./...`
-- Frontend tests: `npm test -- --run`
-- API integration tests: `API_tests/run_api_tests.sh` against a temporary backend on `:18000`
-
-## Build
-
-```bash
-cd frontend && npm run build
-```
-
-## Docker Start (Optional)
-
-```bash
-docker compose up
-```
-
-Docker URLs:
-
-- Frontend: `http://localhost:3001`
-- Backend: `http://localhost:8000`
-
-## Quick Verification Checklist
-
-- `curl http://localhost:8000/health` returns `{"status":"ok"}`
-- Log in as `admin / AdminPass1234` on `acme-training`
-- Navigate to `Administrator` page and save tenant settings
-- Confirm non-admin account cannot access `/admin`
-- Create a content upload, logout, then login as another user and verify upload resume state does not carry over
+- Frontend (web UI): `http://localhost:3001`
+- Backend (REST API): `http://localhost:8000`
+- Health endpoint: `http://localhost:8000/health`
 
 ## Demo Accounts
 
-Tenant `acme-training`:
+All accounts belong to tenant slug `acme-training` unless noted otherwise.
 
-- `admin` / `AdminPass1234`
-- `coordinator` / `CoordPass1234`
-- `instructor` / `InstrPass1234`
-- `learner1` / `LearnerPass12`
-- `learner2` / `LearnerPass12`
+| Role                 | Username     | Email                                | Password        |
+| -------------------- | ------------ | ------------------------------------ | --------------- |
+| Administrator        | `admin`       | `admin@acme-training.local`          | `AdminPass1234` |
+| Program Coordinator  | `coordinator` | `coordinator@acme-training.local`    | `CoordPass1234` |
+| Instructor           | `instructor`  | `instructor@acme-training.local`     | `InstrPass1234` |
+| Learner              | `learner1`    | `learner1@acme-training.local`       | `LearnerPass12` |
+| Learner (secondary)  | `learner2`    | `learner2@acme-training.local`       | `LearnerPass12` |
+| Learner (other tenant `beta-training`) | `learnerx` | `learnerx@beta-training.local` | `LearnerPass12` |
 
-Tenant `beta-training`:
+The backend authenticates by `(tenant_slug, username, password)`; the email column is reserved for future SSO mapping.
 
-- `learnerx` / `LearnerPass12`
+## Verify the Stack
 
-## Acceptance Evidence
+After `docker-compose up`, verify with the following.
 
-- Runnability consistency (ports/proxy/docs/scripts):
-  - `backend/internal/config/config.go`
-  - `frontend/vite.config.ts`
-  - `start_local.sh`
-  - `run_tests_local.sh`
-  - `docker-compose.yml`
-- Administrator scope (tenant settings + permission matrix + role assignments, API + UI + guards):
-  - Backend: `backend/internal/admin/models.go`, `backend/internal/admin/repository.go`, `backend/internal/admin/service.go`, `backend/internal/admin/handler.go`, `backend/migrations/013_admin_controls.sql`, `backend/cmd/server/main.go`
-  - Frontend: `frontend/src/features/admin/AdminPage.tsx`, `frontend/src/api/endpoints.ts`, `frontend/src/app/route-config.tsx`, `frontend/src/auth/policy.ts`
-  - Frontend tests: `frontend/src/test/admin.access-and-flows.test.tsx`
-- Security logging hardening (path token redaction + IP anonymization):
-  - `backend/internal/security/logging.go`
-  - `backend/internal/security/logging_test.go`
-- Frontend state isolation on user switch/logout:
-  - `frontend/src/state/upload-resume-cache.ts`
-  - `frontend/src/features/content/ContentLibraryPage.tsx`
-  - `frontend/src/App.tsx`
-  - `frontend/src/test/state.isolation.test.tsx`
-- High-risk backend integration tests (real API + DB path):
-  - `API_tests/run_api_tests.sh` (lockout, session rotation/invalidation, admin authz/isolation, booking concurrency)
+### API checks (curl)
+
+```bash
+# 1. Health (no auth required)
+curl -s http://localhost:8000/health
+# -> {"status":"ok"}
+
+# 2. Login as admin and capture the session cookie
+curl -s -c cookie.txt -H "Content-Type: application/json" \
+  -d '{"tenant_slug":"acme-training","username":"admin","password":"AdminPass1234"}' \
+  http://localhost:8000/api/v1/auth/login
+# -> {"data":{"status":"authenticated"}}
+
+# 3. Identify the session (tenant_id / user_id / roles)
+curl -s -b cookie.txt http://localhost:8000/api/v1/auth/me
+# -> {"data":{"tenant_id":"...","user_id":"...","roles":["administrator"]}}
+
+# 4. List tenant settings (admin-only)
+curl -s -b cookie.txt http://localhost:8000/api/v1/admin/tenants
+
+# 5. Today's sessions (any role)
+curl -s -b cookie.txt http://localhost:8000/api/v1/dashboard/today-sessions
+```
+
+A Postman/Insomnia collection can be built from the same base URL (`http://localhost:8000/api/v1`) using cookie-based auth.
+
+### Web UI check
+
+1. Open `http://localhost:3001` in a browser.
+2. Log in with `admin` / `AdminPass1234` against tenant `acme-training`.
+3. Confirm the Administrator landing page loads and Tenant Settings can be saved.
+4. Log out, log in as `learner1` / `LearnerPass12`, and confirm the admin routes are blocked.
+5. Upload a document from the Content Library, then log out and log in as a second user: the upload-resume cache should NOT carry over (state isolation on user switch).
+
+## Running Tests
+
+```bash
+bash ./run_tests.sh
+```
+
+This boots the full Docker stack (db + migrations + api + frontend + tester), waits for the API health endpoint, runs the Go unit tests and frontend tests, and executes `API_tests/run_api_tests.sh` inside the `tester` container (real HTTP against the real API container).
+
+## Stop the Stack
+
+```bash
+docker-compose down
+```
+
+Add `-v` to also remove the database volume.
 
 ## Repository Layout
 
 ```text
 repo/
-  backend/
-  frontend/
-  API_tests/
-  unit_tests/
-  run_tests.sh
-  run_tests_local.sh
-  start_local.sh
-  stop_local.sh
+  backend/                  Go API service (Echo + pgx + migrations)
+  frontend/                 React + Vite SPA
+  API_tests/                Real-HTTP integration tests
+  unit_tests/               Unit test entrypoint
+  tester/                   Alpine image running integration tests
+  docker-compose.yml        Full stack orchestration
+  run_tests.sh              All tests via Docker
 ```
+
+## Acceptance Evidence
+
+- Runnability consistency (ports, proxy, docker-compose): `docker-compose.yml`, `backend/internal/config/config.go`, `frontend/vite.config.ts`.
+- Administrator scope (tenant settings + permission matrix + role assignments, API + UI + guards):
+  - Backend: `backend/internal/admin/*.go`, `backend/migrations/013_admin_controls.sql`, `backend/cmd/server/main.go`
+  - Frontend: `frontend/src/features/admin/AdminPage.tsx`, `frontend/src/api/endpoints.ts`, `frontend/src/app/route-config.tsx`, `frontend/src/auth/policy.ts`
+  - Frontend tests: `frontend/src/test/admin.access-and-flows.test.tsx`
+- Security logging hardening (path-token redaction + IP anonymization): `backend/internal/security/logging.go`, `backend/internal/security/logging_test.go`.
+- Frontend state isolation on user switch/logout: `frontend/src/state/upload-resume-cache.ts`, `frontend/src/features/content/ContentLibraryPage.tsx`, `frontend/src/App.tsx`, `frontend/src/test/state.isolation.test.tsx`.
+- High-risk backend integration tests (real API + real DB path, no transport/service mocks): `API_tests/run_api_tests.sh` — lockout, session rotation/invalidation, admin authz/isolation, booking concurrency, full 69-endpoint coverage.
